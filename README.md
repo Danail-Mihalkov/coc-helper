@@ -40,6 +40,11 @@ The planner uses critical-path list scheduling. Whenever a builder is free, it t
 waiting behind it. That puts long chains first and lets short upgrades fill the gaps. The summary compares the result with the theoretical best,
 `max(longest chain, total work / builders)`.
 
+## Deployment
+
+Live at https://danail-mihalkov.github.io/coc-helper/. Every push to `main` runs the tests, builds the app and publishes it
+to GitHub Pages (`.github/workflows/deploy.yml`). It can also be run by hand from the Actions tab.
+
 ## Game data
 
 `src/data/gamedata.json` is generated from [ClashKing's static data](https://github.com/clashkinginc/clashy.go/tree/main/static),
