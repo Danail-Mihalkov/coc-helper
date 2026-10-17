@@ -1,4 +1,14 @@
-import { Entity, gameData, getEntity, maxLevelAt, mergedIntoTownHallAt, unlockCount } from "./gamedata";
+import {
+  BUILDERS_APPRENTICE,
+  Entity,
+  gameData,
+  getEntity,
+  helperMaxLevelAt,
+  MAX_BUILDERS,
+  maxLevelAt,
+  mergedIntoTownHallAt,
+  unlockCount,
+} from "./gamedata";
 import type { Village } from "./parseExport";
 
 /** Gold Pass builder boost. Nominally 20%, but because it unlocks partway through the season ~17% is realistic. */
@@ -9,6 +19,8 @@ export const TH_WEAPON_KEY = "th-weapon";
 
 export interface Settings {
   builders: number;
+  /** Builder's Apprentice level (0 = not unlocked / not used). */
+  apprentice: number;
   goldPass: boolean;
   /** Item keys (entity id as string, or TH_WEAPON_KEY) left out of the plan. */
   excluded: string[];
@@ -54,14 +66,23 @@ export interface Plan {
 }
 
 export function defaultSettings(village: Village): Settings {
-  return { builders: village.builders, goldPass: false, excluded: [] };
+  return {
+    builders: village.builders,
+    apprentice: Math.min(village.helpers[BUILDERS_APPRENTICE] ?? 0, helperMaxLevelAt(BUILDERS_APPRENTICE, village.townHall)),
+    goldPass: false,
+    excluded: [],
+  };
 }
+
+const clamp = (n: unknown, min: number, max: number, fallback: number) =>
+  typeof n === "number" && Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
 
 /** Fills in fields missing from settings saved by older versions. */
 export function normalizeSettings(village: Village, saved?: Partial<Settings>): Settings {
   const d = defaultSettings(village);
   return {
-    builders: saved?.builders ?? d.builders,
+    builders: clamp(saved?.builders, 1, MAX_BUILDERS, d.builders),
+    apprentice: clamp(saved?.apprentice, 0, helperMaxLevelAt(BUILDERS_APPRENTICE, village.townHall), d.apprentice),
     goldPass: saved?.goldPass ?? d.goldPass,
     excluded: Array.isArray(saved?.excluded) ? saved.excluded : d.excluded,
   };

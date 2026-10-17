@@ -1,6 +1,8 @@
+import { BUILDERS_APPRENTICE, helperDailyBoost } from "./gamedata";
 import type { Plan, Step, Track } from "./plan";
 
-const CRITICAL_SLACK = 7 * 86400;
+const DAY = 86400;
+const CRITICAL_SLACK = 7 * DAY;
 
 export interface TrackResult {
   track: Track;
@@ -22,6 +24,8 @@ export interface Schedule {
   finish: number;
   /** Best possible finish ignoring ordering problems: max(longest chain, work / builders). */
   lowerBound: number;
+  /** Total time the Builder's Apprentice takes off the plan. */
+  apprenticeSaved: number;
   /** Steps in start order. */
   order: Step[];
 }
@@ -35,10 +39,16 @@ export interface Schedule {
  * builder is free, it takes the ready step whose remaining downstream work is
  * the longest. Long chains therefore start first and short ones fill the gaps,
  * so everything lands close to the same day.
+ *
+ * The Builder's Apprentice, if any, is assigned once a day to the running
+ * step with the highest priority and takes `multiplier × seconds` off it.
  */
 export function schedule(plan: Plan): Schedule {
   const { steps } = plan;
   const builders = Math.max(1, plan.settings.builders);
+  const boost = helperDailyBoost(BUILDERS_APPRENTICE, plan.settings.apprentice);
+  let nextBoost = boost.multiplier > 0 ? 0 : Infinity;
+  let apprenticeSaved = 0;
   const priority = computePriorities(steps);
 
   const remainingPreds = steps.map((s) => s.preds.length);
@@ -102,9 +112,13 @@ export function schedule(plan: Plan): Schedule {
       startStep(s, t);
       running++;
     }
+    if (t >= nextBoost) {
+      apprenticeSaved += assignApprentice(t);
+      nextBoost += DAY;
+    }
     if (!events.length) break;
-    // Advance to the next completion and release everything that ends then.
-    t = Math.min(...events.map((s) => s.end!));
+    // Advance to the next completion (or apprentice shift) and release everything that ends then.
+    t = Math.min(nextBoost, ...events.map((s) => s.end!));
     for (let i = events.length - 1; i >= 0; i--) {
       const s = events[i];
       if (s.end! > t) continue;
@@ -116,8 +130,25 @@ export function schedule(plan: Plan): Schedule {
     while (slots.length > builders && slots[slots.length - 1] === null) slots.pop();
   }
 
+  /** Boosts the most urgent running upgrade; returns the time saved. */
+  function assignApprentice(t: number): number {
+    let best: Step | undefined;
+    for (const s of events) {
+      if (s.end! > t && (!best || priority[s.idx] > priority[best.idx])) best = s;
+    }
+    if (!best) return 0;
+    const left = best.end! - t;
+    const { seconds, multiplier } = boost;
+    // While boosted it progresses (1 + multiplier)× as fast; it may finish within the boost.
+    const newLeft = left >= (1 + multiplier) * seconds ? left - multiplier * seconds : left / (1 + multiplier);
+    best.end = t + newLeft;
+    return left - newLeft;
+  }
+
   const totalWork = steps.reduce((a, s) => a + s.duration, 0);
   const finish = Math.max(0, ...steps.map((s) => s.end ?? 0));
+  // The apprentice adds a fraction of a builder, and can speed up any one chain by the same fraction.
+  const boostShare = (boost.multiplier * boost.seconds) / DAY;
   const chains = plan.tracks.map((tr) => tr.steps.reduce((a, s) => a + s.duration, 0));
 
   const tracks: TrackResult[] = plan.tracks.map((track) => {
@@ -139,7 +170,8 @@ export function schedule(plan: Plan): Schedule {
     builders,
     totalWork,
     finish,
-    lowerBound: Math.max(0, ...chains, totalWork / builders),
+    lowerBound: Math.max(0, ...chains.map((c) => c / (1 + boostShare)), totalWork / (builders + boostShare)),
+    apprenticeSaved,
     order,
   };
 }

@@ -37,7 +37,21 @@ export interface GameData {
     merges?: Record<string, { id: number; level: number }[]>;
   };
   entities: Record<string, Entity>;
+  helpers: Record<string, Helper>;
 }
+
+export interface Helper {
+  id: number;
+  name: string;
+  /** Index 0 is level 1. Once a day, for `seconds`, the assigned job gets `multiplier` extra seconds per second. */
+  levels: { th: number; seconds: number; multiplier: number }[];
+}
+
+export const BUILDERS_APPRENTICE = 93000000;
+export const LAB_ASSISTANT = 93000001;
+
+/** The game's builder cap: five Builder's Huts plus B.O.B. */
+export const MAX_BUILDERS = 6;
 
 export const gameData = raw as unknown as GameData;
 
@@ -52,6 +66,21 @@ export function maxLevelAt(entity: Entity, th: number): number {
     if (l.th <= th) max = i + 1;
   });
   return max;
+}
+
+export function getHelper(id: number): Helper | undefined {
+  return gameData.helpers[id];
+}
+
+/** Highest helper level available at the given Town Hall level (0 if not unlocked yet). */
+export function helperMaxLevelAt(id: number, th: number): number {
+  return getHelper(id)?.levels.filter((l) => l.th <= th).length ?? 0;
+}
+
+/** A helper's once-a-day boost at a level (nothing at level 0). */
+export function helperDailyBoost(id: number, level: number): { seconds: number; multiplier: number } {
+  const l = getHelper(id)?.levels[level - 1];
+  return l ? { seconds: l.seconds, multiplier: l.multiplier } : { seconds: 0, multiplier: 0 };
 }
 
 export function unlockCount(id: number, th: number): number {

@@ -113,11 +113,28 @@ for (const l of th.levels) {
   }
 }
 
+// Helpers (levelled up instantly with gems). Builder's Apprentice and Lab Assistant: once a day,
+// for `boost_time_seconds`, the assigned upgrade or research gets `boost_multiplier` extra seconds per second.
+const helpers = {};
+for (const h of raw.helpers ?? []) {
+  if (!h.levels?.some((l) => l.boost_multiplier)) continue; // the Alchemist doesn't speed anything up
+  helpers[h._id] = {
+    id: h._id,
+    name: h.name,
+    levels: h.levels.map((l) => ({
+      th: l.required_townhall,
+      seconds: l.boost_time_seconds,
+      multiplier: l.boost_multiplier,
+    })),
+  };
+}
+
 const out = {
   generatedAt: new Date().toISOString(),
   source: SOURCE_URL,
   townHall: { id: TOWN_HALL, maxLevel: th.levels.length, unlocks, weapons, merges },
   entities,
+  helpers,
 };
 
 await writeFile(new URL("../src/data/gamedata.json", import.meta.url), JSON.stringify(out));

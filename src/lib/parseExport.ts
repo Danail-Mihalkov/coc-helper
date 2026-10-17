@@ -1,4 +1,4 @@
-import { gameData, getEntity } from "./gamedata";
+import { gameData, getEntity, getHelper, MAX_BUILDERS } from "./gamedata";
 
 /** One group of identical things in the village (e.g. "3 Cannons at level 18"). */
 export interface VillageItem {
@@ -19,6 +19,8 @@ export interface Village {
   townHallUpgrading?: boolean;
   items: VillageItem[];
   builders: number;
+  /** Helper levels by id (Builder's Apprentice, Lab Assistant). */
+  helpers: Record<number, number>;
   unknownIds: number[];
 }
 
@@ -55,6 +57,7 @@ export function parseExport(text: string, now = Date.now() / 1000): Village {
     townHall: 0,
     items: [],
     builders: 0,
+    helpers: {},
     unknownIds: [],
   };
 
@@ -78,6 +81,10 @@ export function parseExport(text: string, now = Date.now() / 1000): Village {
         }
         continue;
       }
+      if (getHelper(id)) {
+        village.helpers[id] = level;
+        continue;
+      }
       if (id === BUILDERS_HUT || id === BOB_HUT) village.builders += count;
       if (id === BOB_HUT) continue;
 
@@ -92,6 +99,6 @@ export function parseExport(text: string, now = Date.now() / 1000): Village {
   if (!village.townHall) {
     throw new ExportError("Couldn't find a Town Hall in this export. Is it the home village export?");
   }
-  if (!village.builders) village.builders = 5;
+  village.builders = Math.min(MAX_BUILDERS, village.builders || 5);
   return village;
 }

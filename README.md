@@ -17,6 +17,13 @@ still keeps its builder busy until that upgrade finishes. Excluding the Hero Hal
 **Gold Pass**: one on/off switch that applies a 17% time reduction. The boost is nominally 20%, but because you unlock it partway through
 the season, 17% is what you realistically get. Lab research and pets are not planned.
 
+**Builders** go from 1 to 6 (five Builder's Huts plus B.O.B, the game's maximum) and are read from the export.
+
+**Builder's Apprentice**: its level is read from the export (and capped at what your Town Hall allows). Once a day it boosts
+one upgrade for an hour at `1 + level`× speed, saving `level` hours. The planner assigns it every day to the running upgrade
+on the longest remaining chain. The **Lab Assistant** level is shown too, but it only speeds up research, which isn't planned.
+Re-importing an export refreshes the builder count and helper levels; your Gold Pass and include/exclude choices are kept.
+
 Created in [T3 Code](https://t3.codes).
 
 ## Usage
@@ -38,7 +45,7 @@ are left out from that Town Hall on; at TH16 the Eagle is flagged as needing max
 
 The planner uses critical-path list scheduling. Whenever a builder is free, it takes the ready step with the most work still
 waiting behind it. That puts long chains first and lets short upgrades fill the gaps. The summary compares the result with the theoretical best,
-`max(longest chain, total work / builders)`.
+`max(longest chain, total work / builders)`, with the apprentice counted as a fraction of an extra builder.
 
 ## Deployment
 
@@ -61,7 +68,7 @@ npm run update-data
 - Lab research and pets are not planned (the Laboratory and Pet House *buildings* are, since they use builders).
 - Crafting Station modules and supercharges are ignored.
 - Guardians (TH18) are assumed to use builders.
-- Goblin Builder / Builder's Apprentice / potions aren't modelled.
+- Goblin Builder, potions and gem/book finishes aren't modelled.
 
 ## Scripts
 

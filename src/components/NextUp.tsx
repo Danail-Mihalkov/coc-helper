@@ -40,7 +40,7 @@ export function NextUp({ schedule, now }: { schedule: Schedule; now: number }) {
           <h3>
             ⏳ In progress <span className="muted count">{running.length}</span>
           </h3>
-          <ul className="steps">{running.map((s) => row(s, `done in ${formatDuration(s.duration)}`))}</ul>
+          <ul className="steps">{running.map((s) => row(s, `done in ${formatDuration(s.end!)}`))}</ul>
         </div>
       )}
       {upcoming.length > 0 && (

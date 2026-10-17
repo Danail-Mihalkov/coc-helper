@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function VillageHeader({ tag, village, schedule, now, onUpdate }: Props) {
-  const { finish, lowerBound, totalWork, builders } = schedule;
+  const { finish, lowerBound, totalWork, builders, apprenticeSaved } = schedule;
   const items = schedule.tracks.filter((r) => r.timeToMax > 0 && !r.track.excluded).length;
   const waste = finish - lowerBound;
   const age = village.timestamp ? now / 1000 - village.timestamp : 0;
@@ -69,7 +69,13 @@ export function VillageHeader({ tag, village, schedule, now, onUpdate }: Props) 
         <div className="stat">
           <div className="stat-label">Builders</div>
           <div className="stat-value">{builders}</div>
-          <div className="stat-sub">{builders > 0 && finish > 0 ? `${formatDuration(totalWork / builders)} each` : ""}</div>
+          <div className="stat-sub">
+            {apprenticeSaved > 0
+              ? `+ Apprentice: −${formatDuration(apprenticeSaved)}`
+              : builders > 0 && finish > 0
+                ? `${formatDuration(totalWork / builders)} each`
+                : ""}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-label">Left to upgrade</div>

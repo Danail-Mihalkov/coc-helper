@@ -47,7 +47,7 @@ export default function App() {
   function save(tag: string, exportText: string) {
     setProfiles((p) => ({
       ...p,
-      [tag]: { tag, exportText, savedAt: Date.now(), settings: p[tag]?.settings },
+      [tag]: { tag, exportText, savedAt: Date.now(), settings: keepUserChoices(p[tag]?.settings) },
     }));
     setActive(tag);
     setImporting(null);
@@ -139,7 +139,12 @@ export default function App() {
           />
           <div className="layout">
             <aside className="sidebar">
-              <PlanSettings settings={result.settings} onChange={updateSettings} />
+              <PlanSettings
+                settings={result.settings}
+                townHall={result.village.townHall}
+                helpers={result.village.helpers}
+                onChange={updateSettings}
+              />
               <PlanFilter
                 candidates={result.candidates}
                 excluded={result.settings.excluded}
@@ -161,4 +166,9 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+/** A new export brings its own builder count and helper levels; keep only the user's own choices. */
+function keepUserChoices(s?: Partial<Settings>): Partial<Settings> | undefined {
+  return s && { goldPass: s.goldPass, excluded: s.excluded };
 }

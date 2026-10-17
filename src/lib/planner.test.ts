@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { parseExport } from "./parseExport";
-import { buildPlan, defaultSettings, GOLD_PASS_BOOST, TH_WEAPON_KEY, type Plan, type Step, type Track } from "./plan";
+import { buildPlan, defaultSettings, normalizeSettings, GOLD_PASS_BOOST, TH_WEAPON_KEY, type Plan, type Step, type Track } from "./plan";
 import { schedule } from "./scheduler";
 
 const DAY = 86400;
@@ -30,6 +30,15 @@ describe("parseExport", () => {
     expect(v.items).toEqual([{ id: 1000008, level: 10, count: 1, timer: 3000 }]);
   });
 
+  test("reads helper levels and caps builders at the game's six", () => {
+    const v = parseExport(sample);
+    expect(v.helpers).toEqual({ 93000000: 8, 93000001: 12 });
+    expect(defaultSettings(v).apprentice).toBe(8);
+    const many = parseExport(JSON.stringify({ buildings: [{ data: 1000001, lvl: 15 }, { data: 1000015, lvl: 1, cnt: 9 }] }));
+    expect(many.builders).toBe(6);
+    expect(normalizeSettings(v, { builders: 10, apprentice: 99 })).toMatchObject({ builders: 6, apprentice: 8 });
+  });
+
   test("rejects garbage", () => {
     expect(() => parseExport("nope")).toThrow();
     expect(() => parseExport(JSON.stringify({ buildings: [] }))).toThrow(/Town Hall/);
@@ -53,7 +62,7 @@ function manualPlan(builders: number, chains: Record<string, number[]>): Plan {
     });
     return track;
   });
-  return { townHall: 17, tracks, steps, settings: { builders, goldPass: false, excluded: [] } };
+  return { townHall: 17, tracks, steps, settings: { builders, apprentice: 0, goldPass: false, excluded: [] } };
 }
 
 describe("schedule", () => {
@@ -104,6 +113,24 @@ describe("schedule", () => {
       const b = boosted.steps[i];
       expect(b.duration).toBe(s.inProgress ? s.duration : Math.round(s.duration * (1 - GOLD_PASS_BOOST)));
     });
+  });
+
+  test("the Builder's Apprentice takes its daily hours off the most urgent upgrade", () => {
+    const plan = manualPlan(1, { Long: [10] });
+    expect(schedule(plan).finish).toBe(10 * DAY);
+    // Level 8: one hour a day at 9× speed (8h saved), from day 0: boosts on days 0–7 save 64h.
+    plan.settings.apprentice = 8;
+    const s = schedule(plan);
+    expect(s.finish).toBe(240 * 3600 - 64 * 3600);
+    expect(s.apprenticeSaved).toBe(64 * 3600);
+  });
+
+  test("the apprentice makes the sample village finish sooner", () => {
+    const v = parseExport(sample);
+    const without = schedule(buildPlan(v, { ...defaultSettings(v), apprentice: 0 }));
+    const withIt = schedule(buildPlan(v, defaultSettings(v)));
+    expect(withIt.finish).toBeLessThan(without.finish);
+    expect(withIt.finish).toBeGreaterThanOrEqual(withIt.lowerBound);
   });
 
   test("only builder upgrades are planned (no lab or pets)", () => {
